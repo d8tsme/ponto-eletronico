@@ -141,17 +141,24 @@ export function exportTimesheetPdf(
     alternateRowStyles: { fillColor: [248, 250, 252] },
   });
 
-  const docWithTable = doc as jsPDF & { lastAutoTable?: { finalY: number } };
-  const finalY = docWithTable.lastAutoTable?.finalY ?? 50;
-
+  const docWithTable = doc as any;
+  const finalY = docWithTable.lastAutoTable?.finalY || 50;
+  
   doc.setFontSize(10);
   doc.setTextColor(30, 41, 59);
   doc.text("Totais de horas no mês (por funcionário):", 14, finalY + 10);
-
-  let y = finalY + 16;
-  totalsByEmployee.forEach((total, name) => {
-    doc.text(`${name}: ${total.toFixed(2)} h`, 14, y);
-    y += 6;
+  
+  // 2. Usamos 'let' para permitir que o valor de y seja incrementado no loop
+  let currentY = finalY + 16;
+  
+  totalsByEmployee.forEach((total: number, name: string) => {
+    // 3. Verificamos se y não ultrapassou o limite da página (opcional, mas boa prática)
+    if (currentY > 280) {
+      doc.addPage();
+      currentY = 20;
+    }
+    doc.text(`${name}: ${total.toFixed(2)} h`, 14, currentY);
+    currentY += 6;
   });
 
   doc.setFontSize(8);
