@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/auth-helpers";
-import { AdminClient, type PontoLogRow } from "./AdminClient";
+import { normalizePontoLogRows } from "@/lib/normalizePontoLogs";
+import { AdminClient } from "./AdminClient";
 
 function defaultYearMonth(): string {
   const d = new Date();
@@ -44,7 +45,7 @@ export default async function AdminPage() {
 
   return (
     <AdminClient
-      initialLogs={(logs ?? []) as PontoLogRow[]}
+      initialLogs={normalizePontoLogRows(logs ?? [])}
       defaultYearMonth={defaultYearMonth()}
     />
   );

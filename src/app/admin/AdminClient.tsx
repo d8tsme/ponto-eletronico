@@ -2,27 +2,15 @@
 
 import { exportTimesheetPdf } from "@/lib/exportTimesheetPdf";
 import { mapsLink } from "@/lib/geo";
+import {
+  normalizePontoLogRows,
+  type PontoLogRow,
+} from "@/lib/normalizePontoLogs";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-export type PontoLogRow = {
-  id: string;
-  user_id: string;
-  clock_in_at: string;
-  clock_out_at: string | null;
-  lat_in: number;
-  lng_in: number;
-  lat_out: number | null;
-  lng_out: number | null;
-  km_inicial: number;
-  km_final: number | null;
-  observacoes_veiculo: string | null;
-  check_water: boolean;
-  check_oil: boolean;
-  check_tires: boolean;
-  profiles: { full_name: string | null } | null;
-};
+export type { PontoLogRow };
 
 type Props = {
   initialLogs: PontoLogRow[];
@@ -88,7 +76,7 @@ export function AdminClient({ initialLogs, defaultYearMonth }: Props) {
       )
       .order("clock_in_at", { ascending: false })
       .limit(1000);
-    if (data) setLogs(data as PontoLogRow[]);
+    if (data) setLogs(normalizePontoLogRows(data));
   }
 
   return (

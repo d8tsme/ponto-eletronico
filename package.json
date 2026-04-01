@@ -12,6 +12,7 @@
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.10",
     "browser-image-compression": "^2.0.2",
+    "encoding": "^0.1.13",
     "face-api.js": "^0.22.2",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
