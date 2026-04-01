@@ -1,6 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
+/** Formato usado por @supabase/ssr ao propagar cookies de sessão. */
+type CookieToSet = {
+  name: string;
+  value: string;
+  options?: Parameters<InstanceType<typeof NextResponse>["cookies"]["set"]>[2];
+};
+
 const protectedPrefixes = ["/ponto", "/primeiro-acesso", "/admin"];
 
 export async function middleware(request: NextRequest) {
@@ -16,7 +23,7 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: CookieToSet[]) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
