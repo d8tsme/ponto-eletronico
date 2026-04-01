@@ -1,0 +1,18 @@
+{
+  "name": "Ponto Biométrico & Frota",
+  "short_name": "Ponto",
+  "description": "Controle de ponto biométrico e inspeção veicular",
+  "start_url": "/ponto",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#15803d",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
