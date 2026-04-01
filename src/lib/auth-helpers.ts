@@ -11,7 +11,7 @@ export type Profile = {
 };
 
 export async function requireUser() {
-  const supabase = await createClient();
+  const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -33,8 +33,9 @@ export async function requireProfile(): Promise<{
     .eq("id", user.id)
     .single();
 
+  /* Usuário autenticado sem linha em profiles: onboarding, não /login (evita loop com o middleware). */
   if (error || !profile) {
-    redirect("/login");
+    redirect("/primeiro-acesso");
   }
 
   return {

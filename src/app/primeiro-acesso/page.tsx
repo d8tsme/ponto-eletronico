@@ -1,10 +1,18 @@
-import { requireProfile } from "@/lib/auth-helpers";
+import { requireUser } from "@/lib/auth-helpers";
+import { createClient } from "@/lib/supabase/server";
 import { PrimeiroAcessoForm } from "./PrimeiroAcessoForm";
 import { redirect } from "next/navigation";
 
 export default async function PrimeiroAcessoPage() {
-  const { profile } = await requireProfile();
-  if (profile.first_access_completed) redirect("/ponto");
+  const { user } = await requireUser();
+  const supabase = createClient();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("first_access_completed")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profile?.first_access_completed) redirect("/ponto");
 
   return (
     <div className="min-h-dvh bg-slate-50">
