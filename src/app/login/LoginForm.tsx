@@ -38,20 +38,10 @@ export function LoginForm() {
       .single();
 
     if (!profile) {
-      // Fallback: tenta criar o perfil com base no raw_user_meta_data se não existir
-      const { error: insertErr } = await supabase.from("profiles").insert({
-        id: authData.user.id,
-        full_name: authData.user.user_metadata?.full_name || "",
-        cpf: authData.user.user_metadata?.cpf || "",
-      });
-
-      if (insertErr) {
-        // Falha no fallback - encerra a sessão e exibe o erro
-        await supabase.auth.signOut();
-        setLoading(false);
-        setError("Perfil em processamento. Aguarde alguns instantes e faça o login novamente.");
-        return;
-      }
+      await supabase.auth.signOut();
+      setLoading(false);
+      setError("Perfil em processamento. Aguarde alguns instantes e faça o login novamente.");
+      return;
     }
 
     setLoading(false);

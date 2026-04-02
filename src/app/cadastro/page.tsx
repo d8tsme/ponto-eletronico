@@ -47,21 +47,6 @@ export default function CadastroPage() {
       return;
     }
 
-    if (data.user) {
-      const { error: upsertErr } = await supabase.from("profiles").upsert(
-        {
-          id: data.user.id,
-          full_name: fullName.trim(),
-          cpf: digits,
-        },
-        { onConflict: "id" }
-      );
-
-      if (upsertErr) {
-        console.error("Erro no fallback de criação do perfil:", upsertErr);
-      }
-    }
-
     setLoading(false);
     router.push("/primeiro-acesso");
     router.refresh();
