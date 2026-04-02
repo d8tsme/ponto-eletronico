@@ -2,9 +2,7 @@
 
 import * as faceapi from "face-api.js";
 
-const MODEL_BASE =
-  process.env.NEXT_PUBLIC_FACE_API_MODELS_URL ||
-  "https://unpkg.com/face-api.js@0.22.2/weights";
+const MODEL_BASE = '/models';
 
 /** Distância euclidiana máxima para considerar o rosto igual à foto mestra (tolerância 0.6). */
 export const FACE_MATCH_THRESHOLD = 0.6;
