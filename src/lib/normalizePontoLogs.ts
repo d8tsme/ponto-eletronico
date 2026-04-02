@@ -3,6 +3,7 @@
 export type PontoLogRow = {
   id: string;
   user_id: string;
+  created_at: string;
   clock_in_at: string;
   clock_out_at: string | null;
   lat_in: number;
@@ -21,6 +22,10 @@ export type PontoLogRow = {
   oleo_final: string | null;
   pneus_final: string | null;
   observacoes_saida: string | null;
+  endereco_registro: string | null;
+  endereco_saida: string | null;
+  placa_veiculo: string | null;
+  cpf_funcionario: string | null;
   profiles: { full_name: string | null } | null;
 };
 
@@ -43,10 +48,15 @@ function normalizeProfile(p: ProfileEmbed): { full_name: string | null } | null 
 export function normalizePontoLogRow(row: RawRow): PontoLogRow {
   return {
     ...row,
+    created_at: row.created_at ?? row.clock_in_at,
     agua_inicial: row.agua_inicial ?? "",
     oleo_inicial: row.oleo_inicial ?? "",
     pneus_inicial: row.pneus_inicial ?? "",
     observacoes_entrada: row.observacoes_entrada ?? "",
+    endereco_registro: row.endereco_registro ?? null,
+    endereco_saida: row.endereco_saida ?? null,
+    placa_veiculo: row.placa_veiculo ?? null,
+    cpf_funcionario: row.cpf_funcionario ?? null,
     profiles: normalizeProfile(row.profiles ?? null),
   };
 }

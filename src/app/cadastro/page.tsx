@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { formatCpfDisplay, isValidCpfFormat, onlyDigitsCpf } from "@/lib/cpf";
+import { formatCpfDisplay, onlyDigitsCpf, validarCPF } from "@/lib/cpf";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -15,13 +15,16 @@ export default function CadastroPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const cpfDigits = onlyDigitsCpf(cpfInput);
+  const cpfOk = validarCPF(cpfDigits);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
-    const cpfDigits = onlyDigitsCpf(cpfInput);
-    if (!isValidCpfFormat(cpfDigits)) {
-      setError("Informe um CPF válido com 11 dígitos.");
+    const digits = onlyDigitsCpf(cpfInput);
+    if (!validarCPF(digits)) {
+      setError("CPF inválido. Verifique os dígitos.");
       return;
     }
 
@@ -33,7 +36,7 @@ export default function CadastroPage() {
       options: {
         data: {
           full_name: fullName.trim(),
-          cpf: cpfDigits,
+          cpf: digits,
         },
       },
     });
@@ -45,7 +48,7 @@ export default function CadastroPage() {
     }
 
     if (data.session?.user) {
-      await supabase.from("profiles").update({ cpf: cpfDigits }).eq("id", data.session.user.id);
+      await supabase.from("profiles").update({ cpf: digits }).eq("id", data.session.user.id);
     }
 
     setLoading(false);
@@ -128,7 +131,7 @@ export default function CadastroPage() {
           )}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !cpfOk}
             className="tap-target w-full rounded-lg bg-brand-600 px-4 py-3 font-medium text-white transition hover:bg-brand-700 disabled:opacity-60"
           >
             {loading ? "Criando…" : "Cadastrar"}

@@ -17,6 +17,7 @@ export default async function AdminPage() {
       `
       id,
       user_id,
+      created_at,
       clock_in_at,
       clock_out_at,
       lat_in,
@@ -35,11 +36,15 @@ export default async function AdminPage() {
       oleo_final,
       pneus_final,
       observacoes_saida,
+      endereco_registro,
+      endereco_saida,
+      placa_veiculo,
+      cpf_funcionario,
       profiles ( full_name )
     `
     )
     .order("clock_in_at", { ascending: false })
-    .limit(1000);
+    .limit(5000);
 
   if (error) {
     return (

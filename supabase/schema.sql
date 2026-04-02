@@ -43,6 +43,10 @@ create table if not exists public.ponto_logs (
   oleo_final text,
   pneus_final text,
   observacoes_saida text,
+  endereco_registro text,
+  endereco_saida text,
+  placa_veiculo text,
+  cpf_funcionario text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint km_final_gte_inicial check (km_final is null or km_final >= km_inicial)
@@ -135,6 +139,13 @@ create policy "ponto_update_own"
   on public.ponto_logs for update
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+drop policy if exists "Admin total access logs" on public.ponto_logs;
+create policy "Admin total access logs"
+  on public.ponto_logs for select
+  using (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
+  );
 
 -- Storage: bucket para fotos
 insert into storage.buckets (id, name, public)
