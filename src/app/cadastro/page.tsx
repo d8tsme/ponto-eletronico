@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { formatCpfDisplay, isValidCpfFormat, onlyDigitsCpf } from "@/lib/cpf";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -8,6 +9,7 @@ import { useState } from "react";
 export default function CadastroPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
+  const [cpfInput, setCpfInput] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -16,20 +18,37 @@ export default function CadastroPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    const cpfDigits = onlyDigitsCpf(cpfInput);
+    if (!isValidCpfFormat(cpfDigits)) {
+      setError("Informe um CPF válido com 11 dígitos.");
+      return;
+    }
+
     setLoading(true);
     const supabase = createClient();
-    const { error: err } = await supabase.auth.signUp({
+    const { data, error: err } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
-        data: { full_name: fullName.trim() },
+        data: {
+          full_name: fullName.trim(),
+          cpf: cpfDigits,
+        },
       },
     });
-    setLoading(false);
+
     if (err) {
+      setLoading(false);
       setError(err.message);
       return;
     }
+
+    if (data.session?.user) {
+      await supabase.from("profiles").update({ cpf: cpfDigits }).eq("id", data.session.user.id);
+    }
+
+    setLoading(false);
     router.push("/primeiro-acesso");
     router.refresh();
   }
@@ -37,11 +56,9 @@ export default function CadastroPage() {
   return (
     <div className="flex min-h-dvh flex-col justify-center bg-slate-50 px-4 py-10">
       <div className="mx-auto w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-center text-2xl font-semibold text-slate-900">
-          Criar conta
-        </h1>
+        <h1 className="text-center text-2xl font-semibold text-slate-900">Criar conta</h1>
         <p className="mt-2 text-center text-sm text-slate-600">
-          Use um e-mail válido para o primeiro acesso
+          Use um e-mail válido e seu CPF
         </p>
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           <div>
@@ -52,8 +69,26 @@ export default function CadastroPage() {
               id="name"
               type="text"
               required
+              autoComplete="name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+          <div>
+            <label htmlFor="cpf" className="block text-sm font-medium text-slate-700">
+              CPF <span className="text-red-600">*</span>
+            </label>
+            <input
+              id="cpf"
+              type="text"
+              required
+              inputMode="numeric"
+              autoComplete="off"
+              value={cpfInput}
+              onChange={(e) => setCpfInput(formatCpfDisplay(e.target.value))}
+              placeholder="000.000.000-00"
+              maxLength={14}
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500"
             />
           </div>

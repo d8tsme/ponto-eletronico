@@ -16,10 +16,14 @@ type LogLike = {
   clock_out_at: string | null;
   km_inicial: number;
   km_final: number | null;
-  observacoes_veiculo: string | null;
-  check_water: boolean;
-  check_oil: boolean;
-  check_tires: boolean;
+  agua_inicial: string;
+  oleo_inicial: string;
+  pneus_inicial: string;
+  observacoes_entrada: string;
+  agua_final: string | null;
+  oleo_final: string | null;
+  pneus_final: string | null;
+  observacoes_saida: string | null;
   profiles: { full_name: string | null } | null;
 };
 
@@ -39,13 +43,27 @@ function hoursWorked(clockIn: string, clockOut: string | null): number {
 }
 
 function statusText(row: LogLike): string {
-  const parts: string[] = [];
-  if (row.check_water) parts.push("Água");
-  if (row.check_oil) parts.push("Óleo");
-  if (row.check_tires) parts.push("Pneus");
-  const checks = parts.length ? `Verif.: ${parts.join(", ")}` : "";
-  const obs = row.observacoes_veiculo?.trim();
-  return [checks, obs].filter(Boolean).join(" — ") || "—";
+  const ent = [
+    `Água ${row.agua_inicial ?? "—"}`,
+    `Óleo ${row.oleo_inicial ?? "—"}`,
+    `Pneus ${row.pneus_inicial ?? "—"}`,
+  ].join("; ");
+  const obsIn = row.observacoes_entrada?.trim();
+  const inBlock = [ent, obsIn].filter(Boolean).join(" — ");
+
+  if (!row.clock_out_at) {
+    return inBlock || "—";
+  }
+
+  const sai = [
+    `Água ${row.agua_final ?? "—"}`,
+    `Óleo ${row.oleo_final ?? "—"}`,
+    `Pneus ${row.pneus_final ?? "—"}`,
+  ].join("; ");
+  const obsOut = row.observacoes_saida?.trim();
+  const outBlock = [sai, obsOut].filter(Boolean).join(" — ");
+
+  return [`E: ${inBlock}`, `S: ${outBlock}`].join(" | ");
 }
 
 /** Agrupa registros por funcionário e calcula total de horas no mês filtrado. */

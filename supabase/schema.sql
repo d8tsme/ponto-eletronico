@@ -8,6 +8,7 @@ create extension if not exists "uuid-ossp";
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   full_name text,
+  cpf text,
   master_photo_url text,
   face_descriptor jsonb,
   first_access_completed boolean not null default false,
@@ -15,6 +16,10 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create unique index if not exists profiles_cpf_unique
+  on public.profiles (cpf)
+  where cpf is not null and length(trim(cpf)) > 0;
 
 -- Registros de ponto (sessão: entrada + saída na mesma linha)
 create table if not exists public.ponto_logs (
@@ -30,10 +35,14 @@ create table if not exists public.ponto_logs (
   photo_out_url text,
   km_inicial integer not null,
   km_final integer,
-  check_water boolean not null default false,
-  check_oil boolean not null default false,
-  check_tires boolean not null default false,
-  observacoes_veiculo text,
+  agua_inicial text not null default '',
+  oleo_inicial text not null default '',
+  pneus_inicial text not null default '',
+  observacoes_entrada text not null default '',
+  agua_final text,
+  oleo_final text,
+  pneus_final text,
+  observacoes_saida text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint km_final_gte_inicial check (km_final is null or km_final >= km_inicial)
@@ -69,10 +78,11 @@ create trigger ponto_logs_updated_at
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, full_name)
+  insert into public.profiles (id, full_name, cpf)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1))
+    coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
+    nullif(trim(coalesce(new.raw_user_meta_data->>'cpf', '')), '')
   );
   return new;
 end;

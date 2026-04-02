@@ -30,13 +30,27 @@ function kmTotal(row: PontoLogRow): string {
 }
 
 function statusVeiculo(row: PontoLogRow): string {
-  const parts: string[] = [];
-  if (row.check_water) parts.push("Água");
-  if (row.check_oil) parts.push("Óleo");
-  if (row.check_tires) parts.push("Pneus");
-  const v = parts.length ? `Verif.: ${parts.join(", ")}` : "";
-  const o = row.observacoes_veiculo?.trim();
-  return [v, o].filter(Boolean).join(" — ") || "—";
+  const entrada = [
+    `Água: ${row.agua_inicial ?? "—"}`,
+    `Óleo: ${row.oleo_inicial ?? "—"}`,
+    `Pneus: ${row.pneus_inicial ?? "—"}`,
+  ].join(" · ");
+  const obsIn = row.observacoes_entrada?.trim();
+  const inBlock = [entrada, obsIn].filter(Boolean).join(" — ");
+
+  if (!row.clock_out_at) {
+    return inBlock || "—";
+  }
+
+  const saida = [
+    `Água: ${row.agua_final ?? "—"}`,
+    `Óleo: ${row.oleo_final ?? "—"}`,
+    `Pneus: ${row.pneus_final ?? "—"}`,
+  ].join(" · ");
+  const obsOut = row.observacoes_saida?.trim();
+  const outBlock = [saida, obsOut].filter(Boolean).join(" — ");
+
+  return [`Entrada: ${inBlock}`, `Saída: ${outBlock}`].join(" | ");
 }
 
 export function AdminClient({ initialLogs, defaultYearMonth }: Props) {
@@ -65,12 +79,18 @@ export function AdminClient({ initialLogs, defaultYearMonth }: Props) {
         lng_in,
         lat_out,
         lng_out,
+        photo_in_url,
+        photo_out_url,
         km_inicial,
         km_final,
-        observacoes_veiculo,
-        check_water,
-        check_oil,
-        check_tires,
+        agua_inicial,
+        oleo_inicial,
+        pneus_inicial,
+        observacoes_entrada,
+        agua_final,
+        oleo_final,
+        pneus_final,
+        observacoes_saida,
         profiles ( full_name )
       `
       )
@@ -137,7 +157,7 @@ export function AdminClient({ initialLogs, defaultYearMonth }: Props) {
                 <th className="whitespace-nowrap px-4 py-3 font-semibold text-slate-700">Início</th>
                 <th className="whitespace-nowrap px-4 py-3 font-semibold text-slate-700">Término</th>
                 <th className="whitespace-nowrap px-4 py-3 font-semibold text-slate-700">KM total</th>
-                <th className="min-w-[200px] px-4 py-3 font-semibold text-slate-700">Status veículo</th>
+                <th className="min-w-[240px] px-4 py-3 font-semibold text-slate-700">Status veículo</th>
                 <th className="whitespace-nowrap px-4 py-3 font-semibold text-slate-700">Mapas</th>
               </tr>
             </thead>
@@ -172,7 +192,7 @@ export function AdminClient({ initialLogs, defaultYearMonth }: Props) {
                       : "—"}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-slate-700">{kmTotal(row)}</td>
-                  <td className="max-w-xs truncate px-4 py-3 text-slate-600" title={statusVeiculo(row)}>
+                  <td className="max-w-md whitespace-normal break-words px-4 py-3 text-xs text-slate-600">
                     {statusVeiculo(row)}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">

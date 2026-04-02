@@ -23,12 +23,18 @@ export default async function AdminPage() {
       lng_in,
       lat_out,
       lng_out,
+      photo_in_url,
+      photo_out_url,
       km_inicial,
       km_final,
-      observacoes_veiculo,
-      check_water,
-      check_oil,
-      check_tires,
+      agua_inicial,
+      oleo_inicial,
+      pneus_inicial,
+      observacoes_entrada,
+      agua_final,
+      oleo_final,
+      pneus_final,
+      observacoes_saida,
       profiles ( full_name )
     `
     )

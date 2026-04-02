@@ -9,18 +9,30 @@ export type PontoLogRow = {
   lng_in: number;
   lat_out: number | null;
   lng_out: number | null;
+  photo_in_url: string | null;
+  photo_out_url: string | null;
   km_inicial: number;
   km_final: number | null;
-  observacoes_veiculo: string | null;
-  check_water: boolean;
-  check_oil: boolean;
-  check_tires: boolean;
+  agua_inicial: string;
+  oleo_inicial: string;
+  pneus_inicial: string;
+  observacoes_entrada: string;
+  agua_final: string | null;
+  oleo_final: string | null;
+  pneus_final: string | null;
+  observacoes_saida: string | null;
   profiles: { full_name: string | null } | null;
 };
 
 type ProfileEmbed = { full_name: string | null } | { full_name: string | null }[] | null;
 
-type RawRow = Omit<PontoLogRow, "profiles"> & { profiles?: ProfileEmbed };
+type RawRow = Omit<PontoLogRow, "profiles"> & {
+  profiles?: ProfileEmbed;
+  agua_inicial?: string | null;
+  oleo_inicial?: string | null;
+  pneus_inicial?: string | null;
+  observacoes_entrada?: string | null;
+};
 
 function normalizeProfile(p: ProfileEmbed): { full_name: string | null } | null {
   if (p == null) return null;
@@ -31,6 +43,10 @@ function normalizeProfile(p: ProfileEmbed): { full_name: string | null } | null 
 export function normalizePontoLogRow(row: RawRow): PontoLogRow {
   return {
     ...row,
+    agua_inicial: row.agua_inicial ?? "",
+    oleo_inicial: row.oleo_inicial ?? "",
+    pneus_inicial: row.pneus_inicial ?? "",
+    observacoes_entrada: row.observacoes_entrada ?? "",
     profiles: normalizeProfile(row.profiles ?? null),
   };
 }

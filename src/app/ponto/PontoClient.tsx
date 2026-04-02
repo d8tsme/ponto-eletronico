@@ -12,6 +12,14 @@ import type { Profile } from "@/lib/auth-helpers";
 import { compressImageToWebpBlob } from "@/lib/image-compress";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentPosition, type GeoCoords } from "@/lib/geo";
+import {
+  EMPTY_ENTRADA,
+  EMPTY_SAIDA,
+  isEntradaFormValid,
+  isSaidaFormValid,
+  type PontoEntradaFormState,
+  type PontoSaidaFormState,
+} from "@/types/ponto-forms";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -21,11 +29,14 @@ type Props = {
   openLogId: string | null;
 };
 
+type Step = 1 | 2;
+
 export function PontoClient({ profile, openLogId }: Props) {
   const router = useRouter();
   const cameraRef = useRef<FaceCameraHandle>(null);
   const faceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const [step, setStep] = useState<Step>(1);
   const [modelsReady, setModelsReady] = useState(false);
   const [faceOk, setFaceOk] = useState(false);
   const [gpsOk, setGpsOk] = useState(false);
@@ -35,13 +46,8 @@ export function PontoClient({ profile, openLogId }: Props) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const [kmInicial, setKmInicial] = useState("");
-  const [agua, setAgua] = useState(false);
-  const [oleo, setOleo] = useState(false);
-  const [pneus, setPneus] = useState(false);
-
-  const [kmFinal, setKmFinal] = useState("");
-  const [observacoes, setObservacoes] = useState("");
+  const [entrada, setEntrada] = useState<PontoEntradaFormState>({ ...EMPTY_ENTRADA });
+  const [saida, setSaida] = useState<PontoSaidaFormState>({ ...EMPTY_SAIDA });
 
   const master =
     profile.face_descriptor && profile.face_descriptor.length > 0
@@ -87,7 +93,13 @@ export function PontoClient({ profile, openLogId }: Props) {
   }, [refreshGps]);
 
   useEffect(() => {
-    if (!modelsReady || !master) return;
+    if (!modelsReady || !master || step !== 1) {
+      if (faceIntervalRef.current) {
+        clearInterval(faceIntervalRef.current);
+        faceIntervalRef.current = null;
+      }
+      return;
+    }
 
     faceIntervalRef.current = setInterval(async () => {
       const video = cameraRef.current?.getVideo();
@@ -118,7 +130,7 @@ export function PontoClient({ profile, openLogId }: Props) {
     return () => {
       if (faceIntervalRef.current) clearInterval(faceIntervalRef.current);
     };
-  }, [modelsReady, master]);
+  }, [modelsReady, master, step]);
 
   async function captureFrameBlob(): Promise<Blob> {
     const video = cameraRef.current?.getVideo();
@@ -137,12 +149,23 @@ export function PontoClient({ profile, openLogId }: Props) {
     return compressImageToWebpBlob(png);
   }
 
+  const canGoToStep2 = step === 1 && faceOk && gpsOk && coords !== null;
+
   const canSubmit =
-    faceOk &&
+    step === 2 &&
     gpsOk &&
     coords !== null &&
     !saving &&
-    (isClockIn ? kmInicial !== "" && !Number.isNaN(Number(kmInicial)) : kmFinal !== "" && !Number.isNaN(Number(kmFinal)));
+    (isClockIn ? isEntradaFormValid(entrada) : isSaidaFormValid(saida));
+
+  function resetAllAfterSuccess(): void {
+    setStep(1);
+    setEntrada({ ...EMPTY_ENTRADA });
+    setSaida({ ...EMPTY_SAIDA });
+    setSubmitError(null);
+    setFaceOk(false);
+    refreshGps();
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -183,10 +206,11 @@ export function PontoClient({ profile, openLogId }: Props) {
           lat_in: coords.latitude,
           lng_in: coords.longitude,
           photo_in_url: path,
-          km_inicial: Number(kmInicial),
-          check_water: agua,
-          check_oil: oleo,
-          check_tires: pneus,
+          km_inicial: Number(entrada.km_inicial),
+          agua_inicial: entrada.agua_inicial.trim(),
+          oleo_inicial: entrada.oleo_inicial.trim(),
+          pneus_inicial: entrada.pneus_inicial.trim(),
+          observacoes_entrada: entrada.observacoes_entrada.trim(),
         });
         if (insErr) {
           setSubmitError(insErr.message);
@@ -201,8 +225,11 @@ export function PontoClient({ profile, openLogId }: Props) {
             lat_out: coords.latitude,
             lng_out: coords.longitude,
             photo_out_url: path,
-            km_final: Number(kmFinal),
-            observacoes_veiculo: observacoes.trim() || null,
+            km_final: Number(saida.km_final),
+            agua_final: saida.agua_final.trim(),
+            oleo_final: saida.oleo_final.trim(),
+            pneus_final: saida.pneus_final.trim(),
+            observacoes_saida: saida.observacoes_saida.trim(),
           })
           .eq("id", openLogId)
           .eq("user_id", user.id);
@@ -214,12 +241,7 @@ export function PontoClient({ profile, openLogId }: Props) {
       }
 
       router.refresh();
-      setKmInicial("");
-      setKmFinal("");
-      setObservacoes("");
-      setAgua(false);
-      setOleo(false);
-      setPneus(false);
+      resetAllAfterSuccess();
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Erro ao salvar.");
     }
@@ -275,150 +297,300 @@ export function PontoClient({ profile, openLogId }: Props) {
             {isClockIn ? "Registrar entrada" : "Registrar saída"}
           </p>
           <p className="mt-1 text-center text-xs text-slate-500">
-            {isClockIn
-              ? "Complete a validação facial e GPS para liberar o envio."
-              : "Encerre a jornada com validação facial e GPS."}
+            Etapa {step}/2 —{" "}
+            {step === 1
+              ? "Reconhecimento facial e localização"
+              : "Detalhes do veículo e quilometragem"}
           </p>
         </div>
 
-        <FaceCamera ref={cameraRef} />
+        {/* Etapa 1: câmera visível; na etapa 2 mantém-se montada para captura no envio */}
+        <div
+          className={
+            step === 1
+              ? "space-y-3"
+              : "sr-only absolute left-0 top-0 h-px w-px overflow-hidden"
+          }
+          aria-hidden={step === 2}
+        >
+          <FaceCamera ref={cameraRef} />
+        </div>
 
-        <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-sm font-medium text-slate-700">GPS</span>
+        {step === 1 && (
+          <>
+            <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm font-medium text-slate-700">GPS</span>
+                <button
+                  type="button"
+                  onClick={refreshGps}
+                  className="text-sm text-brand-700 underline"
+                >
+                  Atualizar localização
+                </button>
+              </div>
+              {gpsOk && coords && (
+                <p className="text-sm text-green-800">
+                  Localização obtida: {coords.latitude.toFixed(5)}, {coords.longitude.toFixed(5)}
+                </p>
+              )}
+              {gpsError && (
+                <p className="text-sm text-red-700" role="alert">
+                  {gpsError}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <span className="text-sm font-medium text-slate-700">Reconhecimento facial</span>
+              {faceOk ? (
+                <p className="text-sm text-green-800">Rosto validado em relação à foto mestra.</p>
+              ) : (
+                <p className="text-sm text-amber-800">{faceError ?? "Analisando rosto…"}</p>
+              )}
+            </div>
+
             <button
               type="button"
-              onClick={refreshGps}
-              className="text-sm text-brand-700 underline"
+              disabled={!canGoToStep2}
+              onClick={() => setStep(2)}
+              className="tap-target w-full rounded-lg bg-brand-600 py-3 font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Atualizar localização
+              Continuar para o formulário
             </button>
-          </div>
-          {gpsOk && coords && (
-            <p className="text-sm text-green-800">
-              Localização obtida: {coords.latitude.toFixed(5)}, {coords.longitude.toFixed(5)}
-            </p>
-          )}
-          {gpsError && (
-            <p className="text-sm text-red-700" role="alert">
-              {gpsError}
-            </p>
-          )}
-        </div>
+            {!canGoToStep2 && (
+              <p className="text-center text-xs text-slate-500">
+                {!gpsOk && "Ative o GPS e permita a localização. "}
+                {!faceOk && "O reconhecimento facial deve estar válido. "}
+              </p>
+            )}
+          </>
+        )}
 
-        <div className="space-y-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <span className="text-sm font-medium text-slate-700">Reconhecimento facial</span>
-          {faceOk ? (
-            <p className="text-sm text-green-800">Rosto validado em relação à foto mestra.</p>
-          ) : (
-            <p className="text-sm text-amber-800">
-              {faceError ?? "Analisando rosto…"}
-            </p>
-          )}
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          {isClockIn ? (
-            <>
-              <p className="text-sm font-medium text-slate-800">Manutenção de 1º escalão</p>
-              <div>
-                <label htmlFor="km-in" className="block text-sm text-slate-600">
-                  KM inicial
-                </label>
-                <input
-                  id="km-in"
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  value={kmInicial}
-                  onChange={(e) => setKmInicial(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
-                />
-              </div>
-              <div className="flex flex-col gap-3">
-                <label className="flex items-center gap-3 text-slate-800">
-                  <input
-                    type="checkbox"
-                    checked={agua}
-                    onChange={(e) => setAgua(e.target.checked)}
-                    className="h-5 w-5 rounded border-slate-300"
-                  />
-                  Água
-                </label>
-                <label className="flex items-center gap-3 text-slate-800">
-                  <input
-                    type="checkbox"
-                    checked={oleo}
-                    onChange={(e) => setOleo(e.target.checked)}
-                    className="h-5 w-5 rounded border-slate-300"
-                  />
-                  Óleo
-                </label>
-                <label className="flex items-center gap-3 text-slate-800">
-                  <input
-                    type="checkbox"
-                    checked={pneus}
-                    onChange={(e) => setPneus(e.target.checked)}
-                    className="h-5 w-5 rounded border-slate-300"
-                  />
-                  Pneus
-                </label>
-              </div>
-            </>
-          ) : (
-            <>
-              <div>
-                <label htmlFor="km-f" className="block text-sm text-slate-600">
-                  KM final
-                </label>
-                <input
-                  id="km-f"
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  value={kmFinal}
-                  onChange={(e) => setKmFinal(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
-                />
-              </div>
-              <div>
-                <label htmlFor="obs" className="block text-sm text-slate-600">
-                  Observações do veículo
-                </label>
-                <textarea
-                  id="obs"
-                  rows={3}
-                  value={observacoes}
-                  onChange={(e) => setObservacoes(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
-                  placeholder="Ex.: pneu dianteiro com desgaste irregular"
-                />
-              </div>
-            </>
-          )}
-
-          {submitError && (
-            <p className="text-sm text-red-700" role="alert">
-              {submitError}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="tap-target w-full rounded-lg bg-brand-600 py-3 font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+        {step === 2 && (
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
           >
-            {saving ? "Enviando…" : isClockIn ? "Salvar entrada" : "Salvar saída"}
-          </button>
-          {!canSubmit && !saving && (
-            <p className="text-center text-xs text-slate-500">
-              {!gpsOk && "Ative o GPS e permita a localização. "}
-              {!faceOk && "O reconhecimento facial deve estar válido. "}
-              {isClockIn && kmInicial === "" && "Informe o KM inicial. "}
-              {!isClockIn && kmFinal === "" && "Informe o KM final. "}
-            </p>
-          )}
-        </form>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <p className="text-sm font-medium text-slate-800">Localização</p>
+              <button
+                type="button"
+                onClick={refreshGps}
+                className="text-sm text-brand-700 underline"
+              >
+                Atualizar GPS
+              </button>
+            </div>
+            {gpsOk && coords && (
+              <p className="text-xs text-green-800">
+                {coords.latitude.toFixed(5)}, {coords.longitude.toFixed(5)}
+              </p>
+            )}
+            {gpsError && (
+              <p className="text-sm text-red-700" role="alert">
+                {gpsError}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="text-sm text-slate-600 underline"
+            >
+              ← Voltar à etapa facial
+            </button>
+
+            {isClockIn ? (
+              <>
+                <p className="text-sm font-medium text-slate-800">Entrada — veículo</p>
+                <div>
+                  <label htmlFor="km-in" className="block text-sm text-slate-600">
+                    KM inicial <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    id="km-in"
+                    type="number"
+                    min={0}
+                    inputMode="numeric"
+                    required
+                    value={entrada.km_inicial}
+                    onChange={(e) =>
+                      setEntrada((s) => ({ ...s, km_inicial: e.target.value }))
+                    }
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="agua-in" className="block text-sm text-slate-600">
+                    Status — Água <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    id="agua-in"
+                    type="text"
+                    required
+                    value={entrada.agua_inicial}
+                    onChange={(e) =>
+                      setEntrada((s) => ({ ...s, agua_inicial: e.target.value }))
+                    }
+                    placeholder="Ex.: Ok, Baixo"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="oleo-in" className="block text-sm text-slate-600">
+                    Status — Óleo <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    id="oleo-in"
+                    type="text"
+                    required
+                    value={entrada.oleo_inicial}
+                    onChange={(e) =>
+                      setEntrada((s) => ({ ...s, oleo_inicial: e.target.value }))
+                    }
+                    placeholder="Ex.: Ok, Trocado"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="pneus-in" className="block text-sm text-slate-600">
+                    Status — Pneus <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    id="pneus-in"
+                    type="text"
+                    required
+                    value={entrada.pneus_inicial}
+                    onChange={(e) =>
+                      setEntrada((s) => ({ ...s, pneus_inicial: e.target.value }))
+                    }
+                    placeholder="Ex.: Ok, Desgaste"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="obs-in" className="block text-sm text-slate-600">
+                    Observações (entrada)
+                  </label>
+                  <textarea
+                    id="obs-in"
+                    rows={3}
+                    value={entrada.observacoes_entrada}
+                    onChange={(e) =>
+                      setEntrada((s) => ({ ...s, observacoes_entrada: e.target.value }))
+                    }
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                    placeholder="Observações adicionais na entrada"
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-medium text-slate-800">Saída — veículo</p>
+                <div>
+                  <label htmlFor="km-f" className="block text-sm text-slate-600">
+                    KM final <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    id="km-f"
+                    type="number"
+                    min={0}
+                    inputMode="numeric"
+                    required
+                    value={saida.km_final}
+                    onChange={(e) => setSaida((s) => ({ ...s, km_final: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="agua-f" className="block text-sm text-slate-600">
+                    Status — Água (final) <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    id="agua-f"
+                    type="text"
+                    required
+                    value={saida.agua_final}
+                    onChange={(e) =>
+                      setSaida((s) => ({ ...s, agua_final: e.target.value }))
+                    }
+                    placeholder="Ex.: Ok, Baixo"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="oleo-f" className="block text-sm text-slate-600">
+                    Status — Óleo (final) <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    id="oleo-f"
+                    type="text"
+                    required
+                    value={saida.oleo_final}
+                    onChange={(e) =>
+                      setSaida((s) => ({ ...s, oleo_final: e.target.value }))
+                    }
+                    placeholder="Ex.: Ok, Trocado"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="pneus-f" className="block text-sm text-slate-600">
+                    Status — Pneus (final) <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    id="pneus-f"
+                    type="text"
+                    required
+                    value={saida.pneus_final}
+                    onChange={(e) =>
+                      setSaida((s) => ({ ...s, pneus_final: e.target.value }))
+                    }
+                    placeholder="Ex.: Ok, Desgaste"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="obs-out" className="block text-sm text-slate-600">
+                    Observações (saída)
+                  </label>
+                  <textarea
+                    id="obs-out"
+                    rows={3}
+                    value={saida.observacoes_saida}
+                    onChange={(e) =>
+                      setSaida((s) => ({ ...s, observacoes_saida: e.target.value }))
+                    }
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                    placeholder="Observações adicionais na saída"
+                  />
+                </div>
+              </>
+            )}
+
+            {submitError && (
+              <p className="text-sm text-red-700" role="alert">
+                {submitError}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={!canSubmit}
+              className="tap-target w-full rounded-lg bg-brand-600 py-3 font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? "Enviando…" : isClockIn ? "Salvar entrada" : "Salvar saída"}
+            </button>
+            {!canSubmit && !saving && (
+              <p className="text-center text-xs text-slate-500">
+                {!gpsOk && "GPS necessário para enviar. "}
+                {isClockIn && !isEntradaFormValid(entrada) && "Preencha KM e status de água, óleo e pneus. "}
+                {!isClockIn && !isSaidaFormValid(saida) && "Preencha KM final e status de água, óleo e pneus. "}
+              </p>
+            )}
+          </form>
+        )}
       </div>
     </div>
   );

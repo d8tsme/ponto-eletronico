@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 export type Profile = {
   id: string;
   full_name: string | null;
+  cpf: string | null;
   master_photo_url: string | null;
   face_descriptor: number[] | null;
   first_access_completed: boolean;
@@ -28,7 +29,7 @@ export async function requireProfile(): Promise<{
   const { data: profile, error } = await supabase
     .from("profiles")
     .select(
-      "id, full_name, master_photo_url, face_descriptor, first_access_completed, is_admin"
+      "id, full_name, cpf, master_photo_url, face_descriptor, first_access_completed, is_admin"
     )
     .eq("id", user.id)
     .single();
