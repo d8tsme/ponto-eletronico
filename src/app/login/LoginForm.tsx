@@ -19,15 +19,42 @@ export function LoginForm() {
     setError(null);
     setLoading(true);
     const supabase = createClient();
-    const { error: err } = await supabase.auth.signInWithPassword({
+    const { data: authData, error: err } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
     });
-    setLoading(false);
-    if (err) {
-      setError(err.message);
+
+    if (err || !authData.user) {
+      setLoading(false);
+      setError(err?.message || "Erro ao fazer login");
       return;
     }
+
+    // Verificar se o usuário existe na tabela public.profiles
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", authData.user.id)
+      .single();
+
+    if (!profile) {
+      // Fallback: tenta criar o perfil com base no raw_user_meta_data se não existir
+      const { error: insertErr } = await supabase.from("profiles").insert({
+        id: authData.user.id,
+        full_name: authData.user.user_metadata?.full_name || "",
+        cpf: authData.user.user_metadata?.cpf || "",
+      });
+
+      if (insertErr) {
+        // Falha no fallback - encerra a sessão e exibe o erro
+        await supabase.auth.signOut();
+        setLoading(false);
+        setError("Perfil em processamento. Aguarde alguns instantes e faça o login novamente.");
+        return;
+      }
+    }
+
+    setLoading(false);
     router.push(next);
     router.refresh();
   }
