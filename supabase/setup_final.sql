@@ -356,17 +356,26 @@ create policy "storage_ponto_delete_own"
 -- SEÇÃO 7: SCRIPTS ÚTEIS (comentados)
 -- ================================================================================
 
+-- 🔧 LIMPEZA DE DADOS (EXECUTAR EM CASO DE BUGS):
+-- Converter NULL em face_registered para false (evita loops):
+-- update public.profiles set face_registered = false where face_registered is null;
+
+-- Garantir que face_registered tem default (se não tiver):
+-- alter table public.profiles alter column face_registered set default false;
+
+-- 👤 ADMINISTRAÇÃO DE USUÁRIOS:
 -- Para tornar um usuário admin (substitua o UUID):
 -- update public.profiles set is_admin = true where id = 'UUID-DO-USUARIO';
 
 -- Para resetar primeiro acesso de um usuário:
 -- update public.profiles set first_access_completed = false where id = 'UUID-DO-USUARIO';
 
--- Para limpar face_registered de um usuário:
+-- Para limpar face_registered de um usuário (ex: registrar face novamente):
 -- update public.profiles
 -- set face_registered = false, master_photo_url = null, face_descriptor = null
 -- where id = 'UUID-DO-USUARIO';
 
+-- 📊 CONSULTAS ÚTEIS:
 -- Para visualizar sessões abertas (ponto de entrada sem saída):
 -- select id, user_id, clock_in_at, full_name
 -- from public.ponto_logs

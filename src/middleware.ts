@@ -55,17 +55,17 @@ export async function middleware(request: NextRequest) {
   const isProtected = protectedPrefixes.some((p) => path.startsWith(p));
 
   /**
-   * PROTEÇÃO ANTI-LOOP:
-   * Verificar se o usuário JÁ ESTÁ na rota de destino antes de redirecionar.
-   * Isso evita loops infinitos de redirecionamento.
+   * PROTEÇÃO ANTI-LOOP (VERSÃO SIMPLES):
+   * - Sem user? Protegidas → /login
+   * - Com user + /login ou /cadastro → /ponto
+   * - Caso contrário: deixar passar (a.página decidirá se redireciona)
+   * 
+   * IMPORTANTE: Não verificamos face_registered aqui!
+   * Deixamos /primeiro-acesso funcionar naturalmente sem o middleware interceptá-la.
    */
 
   // Usuário NÃO autenticado tentando acessar rota protegida
   if (!user && isProtected) {
-    // NUNCA redirecione se já está em /login
-    if (path === "/login") {
-      return response;
-    }
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", path);
@@ -75,25 +75,16 @@ export async function middleware(request: NextRequest) {
   }
 
   // Usuário autenticado tentando acessar /login ou /cadastro
- if (user) {
-  // Se o usuário está logado e tenta acessar as páginas de entrada
-  if (path === "/login" || path === "/cadastro") {
-    // Se o destino for o login ou cadastro, redirecionamos para o ponto
-    // Não precisamos checar se path === "/ponto" aqui, pois o 'if' acima já filtra
+  if (user && (path === "/login" || path === "/cadastro")) {
     const url = request.nextUrl.clone();
     url.pathname = "/ponto";
-    
     const redirect = NextResponse.redirect(url);
-    
-    // Aplica os cookies de sessão no redirecionamento para manter o login ativo
     applyCookies(redirect, sessionCookies);
-    
     return redirect;
   }
-}
 
-// Se não entrar nos blocos de redirecionamento, retorna a resposta padrão (segue o fluxo)
-return response;
+  // Em todos os outros casos, deixar a página decidir o que fazer
+  return response;
 }
 
 export const config = {

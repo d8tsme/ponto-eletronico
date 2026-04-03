@@ -7,7 +7,11 @@ import { redirect } from "next/navigation";
 export default async function PontoPage() {
   const { profile, supabase, user } = await requireProfile();
 
-  if (!profile.first_access_completed) {
+  /**
+   * Verificar se o usuário completou o PRIMEIRO ACESSO (face registrada).
+   * Se não, redirecionar para o fluxo de cadastro facial.
+   */
+  if (!profile.face_registered) {
     redirect("/primeiro-acesso");
   }
 
