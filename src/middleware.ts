@@ -75,21 +75,25 @@ export async function middleware(request: NextRequest) {
   }
 
   // Usuário autenticado tentando acessar /login ou /cadastro
-  if (user) {
-    if (path === "/login" || path === "/cadastro") {
-      // NUNCA redirecione se já está em /ponto
-      if (path === "/ponto") {
-        return response;
-      }
-      const url = request.nextUrl.clone();
-      url.pathname = "/ponto";
-      const redirect = NextResponse.redirect(url);
-      applyCookies(redirect, sessionCookies);
-      return redirect;
-    }
+ if (user) {
+  // Se o usuário está logado e tenta acessar as páginas de entrada
+  if (path === "/login" || path === "/cadastro") {
+    // Se o destino for o login ou cadastro, redirecionamos para o ponto
+    // Não precisamos checar se path === "/ponto" aqui, pois o 'if' acima já filtra
+    const url = request.nextUrl.clone();
+    url.pathname = "/ponto";
+    
+    const redirect = NextResponse.redirect(url);
+    
+    // Aplica os cookies de sessão no redirecionamento para manter o login ativo
+    applyCookies(redirect, sessionCookies);
+    
+    return redirect;
   }
+}
 
-  return response;
+// Se não entrar nos blocos de redirecionamento, retorna a resposta padrão (segue o fluxo)
+return response;
 }
 
 export const config = {
