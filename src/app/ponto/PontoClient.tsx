@@ -44,7 +44,9 @@ export function PontoClient({
   const router = useRouter();
   const cameraRef = useRef<FaceCameraHandle>(null);
   const faceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isInitialRender = useRef(true);
 
+  const [globalLoading, setGlobalLoading] = useState(true);
   const [step, setStep] = useState<Step>(1);
   const [modelsReady, setModelsReady] = useState(false);
   const [faceOk, setFaceOk] = useState(false);
@@ -81,6 +83,24 @@ export function PontoClient({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (isInitialRender.current) {
+      isInitialRender.current = false;
+      if (!profile) {
+        setGlobalLoading(true);
+        return;
+      }
+      setGlobalLoading(false);
+    }
+  }, [profile]);
+
+  useEffect(() => {
+    if (globalLoading) return;
+    if (!master) {
+      router.replace("/primeiro-acesso");
+    }
+  }, [globalLoading, master, router]);
 
   const refreshGps = useCallback(() => {
     setGpsError(null);
@@ -281,11 +301,22 @@ export function PontoClient({
     router.refresh();
   }
 
+  if (globalLoading) {
+    return (
+      <div className="min-h-dvh flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-300 border-t-brand-600" />
+          <p className="text-sm text-slate-600">Carregando dados do perfil...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!master) {
     return (
-      <p className="p-6 text-center text-red-700">
-        Perfil sem descritor facial. Conclua o primeiro acesso.
-      </p>
+      <div className="min-h-dvh flex items-center justify-center bg-slate-50">
+        <p className="text-sm text-slate-700">Redirecionando para o primeiro acesso...</p>
+      </div>
     );
   }
 
@@ -411,7 +442,7 @@ export function PontoClient({
               }
               aria-hidden={step === 2}
             >
-              <FaceCamera ref={cameraRef} />
+              <FaceCamera ref={cameraRef} faceOk={faceOk} />
             </div>
 
             {step === 1 && (
