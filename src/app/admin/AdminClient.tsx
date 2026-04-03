@@ -152,6 +152,13 @@ export function AdminClient({ initialLogs, defaultYearMonth }: Props) {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
+              href="/ajuda"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              title="Abrir centro de ajuda"
+            >
+              Ajuda
+            </Link>
+            <Link
               href="/ponto"
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >

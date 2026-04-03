@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { emergencyCleanup, logoutAndCleanup } from "@/lib/storage-cleanup";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -25,20 +26,29 @@ export function LoginForm() {
     });
 
     if (err || !authData.user) {
+      const errorMsg = err?.message || "Erro ao fazer login";
+      console.error("[Login] Erro de autenticação:", err);
       setLoading(false);
-      setError(err?.message || "Erro ao fazer login");
+      
+      // Limpeza de emergência ao erro de login
+      emergencyCleanup();
+      setError(errorMsg);
       return;
     }
 
     // Verificar se o usuário existe na tabela public.profiles
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("id")
+      .select("id, face_registered, first_access_completed")
       .eq("id", authData.user.id)
       .single();
 
-    if (!profile) {
-      await supabase.auth.signOut();
+    if (profileError || !profile) {
+      console.warn(
+        "[Login] Perfil não encontrado ou erro ao buscar:",
+        profileError
+      );
+      await logoutAndCleanup(supabase);
       setLoading(false);
       setError("Perfil em processamento. Aguarde alguns instantes e faça o login novamente.");
       return;
@@ -99,6 +109,11 @@ export function LoginForm() {
         Não tem conta?{" "}
         <Link href="/cadastro" className="font-medium text-brand-700 underline">
           Cadastre-se
+        </Link>
+      </p>
+      <p className="mt-4 text-center text-xs text-slate-500">
+        <Link href="/ajuda" className="text-brand-600 hover:text-brand-700 hover:underline">
+          Precisa de ajuda?
         </Link>
       </p>
     </div>

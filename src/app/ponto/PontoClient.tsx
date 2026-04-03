@@ -272,7 +272,11 @@ export function PontoClient({
 
   async function handleLogout() {
     const supabase = createClient();
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error("[Logout] Erro ao fazer signOut:", e);
+    }
     router.push("/login");
     router.refresh();
   }
@@ -304,6 +308,13 @@ export function PontoClient({
                 Admin
               </Link>
             )}
+            <Link
+              href="/ajuda"
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              title="Abrir centro de ajuda"
+            >
+              ?
+            </Link>
             <button
               type="button"
               onClick={handleLogout}

@@ -7,8 +7,12 @@ export type Profile = {
   cpf: string | null;
   master_photo_url: string | null;
   face_descriptor: number[] | null;
+  face_embedding: string | null;
+  face_registered: boolean;
   first_access_completed: boolean;
   is_admin: boolean;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export async function requireUser() {
@@ -29,13 +33,16 @@ export async function requireProfile(): Promise<{
   const { data: profile, error } = await supabase
     .from("profiles")
     .select(
-      "id, full_name, cpf, master_photo_url, face_descriptor, first_access_completed, is_admin"
+      "id, full_name, cpf, master_photo_url, face_descriptor, face_embedding, face_registered, first_access_completed, is_admin, created_at, updated_at"
     )
     .eq("id", user.id)
     .single();
 
   /* Usuário autenticado sem linha em profiles: onboarding, não /login (evita loop com o middleware). */
   if (error || !profile) {
+    console.warn(
+      `[Auth] Perfil não encontrado para usuário ${user.id}. Redirecionando para /primeiro-acesso`
+    );
     redirect("/primeiro-acesso");
   }
 

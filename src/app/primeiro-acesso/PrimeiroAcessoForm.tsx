@@ -81,36 +81,57 @@ export function PrimeiroAcessoForm() {
         return;
       }
 
+      // ====== UPLOAD FOTO PARA STORAGE ======
       const path = `${user.id}/master.webp`;
+      console.log(`[FaceReg] Iniciando upload da foto mestra para: ${path}`);
+      
       const { error: upErr } = await supabase.storage
         .from("ponto-fotos")
         .upload(path, webp, { upsert: true, contentType: "image/webp" });
 
       if (upErr) {
-        setError(upErr.message);
+        console.error(`[FaceReg] Erro no upload: ${upErr.message}`);
+        setError(`Erro ao salvar foto no servidor: ${upErr.message}`);
         setLoading(false);
         return;
       }
+      console.log(`[FaceReg] Foto mestra salva com sucesso: ${path}`);
 
+      // ====== UPDATE PROFILE NO BANCO ======
+      // IMPORTANTE: ATUALIZAR ANTES DO REDIRECIONAMENTO
+      console.log(`[FaceReg] Atualizando profile para usuário ${user.id}`);
+      
       const { error: dbErr } = await supabase
         .from("profiles")
         .update({
           master_photo_url: path,
           face_descriptor: Array.from(descriptor),
+          face_registered: true,
           first_access_completed: true,
         })
         .eq("id", user.id);
 
       if (dbErr) {
-        setError(dbErr.message);
+        console.error(
+          `[FaceReg] Erro ao atualizar profile no banco de dados:`,
+          dbErr
+        );
+        setError(
+          `Erro ao salvar biometria no banco de dados: ${dbErr.message}`
+        );
         setLoading(false);
         return;
       }
+      console.log(`[FaceReg] Profile atualizado com sucesso`);
 
+      // ====== REDIRECIONAMENTO APÓS PERSISTÊNCIA ======
+      console.log(`[FaceReg] Redirect para /ponto`);
       router.push("/ponto");
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erro ao salvar foto mestra.");
+      const errorMsg = e instanceof Error ? e.message : "Erro ao salvar foto mestra.";
+      console.error(`[FaceReg] Erro durante captura e salvamento:`, e);
+      setError(errorMsg);
     }
     setLoading(false);
   }
