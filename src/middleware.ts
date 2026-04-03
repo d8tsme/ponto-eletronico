@@ -54,7 +54,18 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isProtected = protectedPrefixes.some((p) => path.startsWith(p));
 
+  /**
+   * PROTEÇÃO ANTI-LOOP:
+   * Verificar se o usuário JÁ ESTÁ na rota de destino antes de redirecionar.
+   * Isso evita loops infinitos de redirecionamento.
+   */
+
+  // Usuário NÃO autenticado tentando acessar rota protegida
   if (!user && isProtected) {
+    // NUNCA redirecione se já está em /login
+    if (path === "/login") {
+      return response;
+    }
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", path);
@@ -63,12 +74,19 @@ export async function middleware(request: NextRequest) {
     return redirect;
   }
 
-  if (user && (path === "/login" || path === "/cadastro")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/ponto";
-    const redirect = NextResponse.redirect(url);
-    applyCookies(redirect, sessionCookies);
-    return redirect;
+  // Usuário autenticado tentando acessar /login ou /cadastro
+  if (user) {
+    if (path === "/login" || path === "/cadastro") {
+      // NUNCA redirecione se já está em /ponto
+      if (path === "/ponto") {
+        return response;
+      }
+      const url = request.nextUrl.clone();
+      url.pathname = "/ponto";
+      const redirect = NextResponse.redirect(url);
+      applyCookies(redirect, sessionCookies);
+      return redirect;
+    }
   }
 
   return response;
